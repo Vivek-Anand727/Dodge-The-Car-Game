@@ -1,6 +1,7 @@
 #include <iostream>
 #include <windows.h>
 #include <conio.h> // for _kbhit()
+#include <fstream>
 
 #define SCREEN_WIDTH 90
 #define SCREEN_HEIGHT 26
@@ -144,11 +145,48 @@ bool isCollision(int enemyX, int enemyY)
     return true;
 }
 
+void drawExplosion(int x, int y) {
+    string explosion[] = {
+        " * * * ",
+        "  ***  ",
+        " * * * "
+    };
+
+    for (int i = 0; i < 3; i++) {
+        gotoXY(x - 3, y + i);
+        cout << explosion[i];
+    }
+}
+
+
+int highScore = 0;
+void loadHighScore()
+{
+    ifstream file("highscore.txt");
+    if (file.is_open())
+    {
+        file >> highScore;
+        file.close();
+    }
+}
+
+void saveHighScore()
+{
+    ofstream file("highscore.txt");
+    if (file.is_open())
+    {
+        file << highScore;
+        file.close();
+    }
+}
+
 int score = 0;
 void drawScore()
 {
     gotoXY(2, 1);
     cout << "Score: " << score;
+    gotoXY(70, 2);
+    cout << "High Score: " << highScore;
 }
 
 void showStartScreen()
@@ -164,9 +202,13 @@ void showStartScreen()
     cout << "Press P to Pause/Resume during game.";
     gotoXY(30, 15);
     cout << "Press any key to start...";
-    while (!_kbhit()); // waits for keypress
+    while (!_kbhit())
+        ; // waits for keypress
     system("cls");
 }
+
+int baseDelay = 50;
+int minDelay = 20; // Minimum delay to avoid zero Sleep
 
 void play()
 {
@@ -217,7 +259,9 @@ void play()
                 Sleep(50);
         }
 
-        if(paused){
+        if (paused)
+        {
+            Beep(600, 200);
             Sleep(100);
             continue;
         }
@@ -229,6 +273,10 @@ void play()
                 eraseCar();
                 carPosX -= 2;
             }
+            else
+            {
+                Beep(300, 10);
+            }
         }
         if (GetAsyncKeyState(VK_RIGHT) & 0x8000 || GetAsyncKeyState('D') & 0x8000)
         {
@@ -236,6 +284,10 @@ void play()
             {
                 eraseCar();
                 carPosX += 2;
+            }
+            else
+            {
+                Beep(300, 10);
             }
         }
         if (GetAsyncKeyState(VK_ESCAPE) & 0x8000)
@@ -255,10 +307,23 @@ void play()
 
             if (isCollision(enemyX[i], enemyY[i]))
             {
+                drawExplosion(carPosX + 1, carPosY);
+                Beep(700, 150);
+                Sleep(300);
+
+                Beep(500, 300);
+                Beep(300, 300);
+                
                 gotoXY(40, 12);
                 cout << "--XX GAME OVER XX--";
                 gotoXY(38, 13);
                 cout << "Press R to Restart or ESC to exit...";
+
+                if (score > highScore)
+                {
+                    highScore = score;
+                    saveHighScore();
+                }
 
                 while (true)
                 {
@@ -293,7 +358,8 @@ void play()
             lastScoreTime = GetTickCount();
         }
 
-        Sleep(50);
+        int delay = max(minDelay, (baseDelay - score / 5));
+        Sleep(delay);
     }
 }
 
@@ -307,6 +373,8 @@ int main()
     system("cls");
     drawBoundary();
     drawCar();
+    loadHighScore();
+    drawScore();
 
     play();
 
